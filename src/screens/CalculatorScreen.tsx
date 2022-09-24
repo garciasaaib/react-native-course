@@ -1,11 +1,28 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Text, View } from 'react-native';
 import { ButtonCalc } from '../components/calculator/ButtonCalc';
 import { styles } from '../theme/appTheme';
 
+enum Operadores {
+  sum, rest, multiply, divide
+}
+
 export const CalculatorScreen = () => {
   const [display, setDisplay] = useState('22');
-  const [result, setResult] = useState('0');
+  const [displaySmall, setDisplaySmall] = useState('0');
+
+  const operacion = useRef<Operadores>();
+
+  const justQuitAChar = (dis: string) => dis.substring(0, dis.length - 1) || '0';
+  const isEmpty = (dis: string) => ['0', '-0', ''].some(d => d === dis);
+  const quitNoValueDecimal = (dis: string) => {
+    let value = dis;
+    if (dis.includes('.')) {
+      value = dis.replace(/0+$/, '');
+    }
+    return value.endsWith('.') ? justQuitAChar(value) : value;
+
+  };
 
   const cleanDisplay = () => {
     setDisplay('0');
@@ -16,10 +33,10 @@ export const CalculatorScreen = () => {
     if (display.includes('.') && numberText === '.') { return; }
 
     // not allow add other 0 in the left without a .
-    if (['0', '-0'].some(d => d === display)) {
+    if (isEmpty(display)) {
       if (numberText === '0') { return; }
       if (/[1-9]/.test(numberText)) {
-        setDisplay(/[-0]/.test(display) ? '-' + numberText : numberText);
+        setDisplay(/[-0]/.test(display) ? numberText : '-' + numberText);
         return;
       }
     }
@@ -36,18 +53,66 @@ export const CalculatorScreen = () => {
 
   const btnDeleteOneChar = () => {
     let newValue;
-    const justQuitAChar = () => display.substring(0,display.length - 1) || '0';
 
     newValue = display.length > 2
-      ? justQuitAChar()
-      : /-[\d]?/.test(display) ? '0' : justQuitAChar();
+      ? justQuitAChar(display)
+      : /-[\d]?/.test(display) ? '0' : justQuitAChar(display);
 
     setDisplay(newValue);
   };
 
+  const moveToDisplaySmall = () => {
+    const valueToTop = quitNoValueDecimal(display);
+    if (isEmpty(valueToTop)) { return; }
+    setDisplaySmall(valueToTop);
+    cleanDisplay();
+  };
+
+  const btnDivide = () => {
+    moveToDisplaySmall();
+    operacion.current = Operadores.divide;
+  };
+
+  const btnSum = () => {
+    moveToDisplaySmall();
+    operacion.current = Operadores.sum;
+  };
+
+  const btnMultiply = () => {
+    moveToDisplaySmall();
+    operacion.current = Operadores.multiply;
+  };
+
+  const btnRest = () => {
+    moveToDisplaySmall();
+    operacion.current = Operadores.rest;
+  };
+
+  const calculate = () => {
+    const num1 = Number(displaySmall);
+    const num2 = Number(display);
+    if (num1 === 0) { return; }
+    console.log(num1, num2);
+    switch (operacion.current) {
+      case Operadores.sum:
+        setDisplay(`${num1 + num2}`);
+      break;
+      case Operadores.rest:
+        setDisplay(`${num1 - num2}`);
+      break;
+      case Operadores.divide:
+        if (num2 !== 0) { setDisplay(`${num1 / num2}`); }
+      break;
+      case Operadores.multiply:
+        setDisplay(`${num1 * num2}`);
+      break;
+    }
+    setDisplaySmall('0');
+  };
+
   return (
     <View style={styles.calculadoraContainer}>
-      <Text style={styles.resultSmall}>{result}</Text>
+      {displaySmall === '0' || <Text style={styles.resultSmall}>{displaySmall}</Text>}
       <Text
         style={styles.result}
         numberOfLines={1}
@@ -59,30 +124,30 @@ export const CalculatorScreen = () => {
         <ButtonCalc text="C" action={cleanDisplay} />
         <ButtonCalc text="+/-" action={togglePositiveNegative} />
         <ButtonCalc text="del" action={btnDeleteOneChar} />
-        <ButtonCalc color="orange" text="/" action={cleanDisplay} />
+        <ButtonCalc color="orange" text="/" action={btnDivide} />
       </View>
       <View style={styles.row}>
         <ButtonCalc color="dark" text="7" action={buildNumber} />
         <ButtonCalc color="dark" text="8" action={buildNumber} />
         <ButtonCalc color="dark" text="9" action={buildNumber} />
-        <ButtonCalc color="orange" text="*" action={cleanDisplay} />
+        <ButtonCalc color="orange" text="*" action={btnMultiply} />
       </View>
       <View style={styles.row}>
         <ButtonCalc color="dark" text="4" action={buildNumber} />
         <ButtonCalc color="dark" text="5" action={buildNumber} />
         <ButtonCalc color="dark" text="6" action={buildNumber} />
-        <ButtonCalc color="orange" text="-" action={cleanDisplay} />
+        <ButtonCalc color="orange" text="-" action={btnRest} />
       </View>
       <View style={styles.row}>
         <ButtonCalc color="dark" text="1" action={buildNumber} />
         <ButtonCalc color="dark" text="2" action={buildNumber} />
         <ButtonCalc color="dark" text="3" action={buildNumber} />
-        <ButtonCalc color="orange" text="+" action={cleanDisplay} />
+        <ButtonCalc color="orange" text="+" action={btnSum} />
       </View>
       <View style={styles.row}>
         <ButtonCalc width={2} color="dark" text="0" action={buildNumber} />
         <ButtonCalc color="dark" text="." action={buildNumber} />
-        <ButtonCalc color="orange" text="=" action={cleanDisplay} />
+        <ButtonCalc color="orange" text="=" action={calculate} />
       </View>
     </View>
   );
